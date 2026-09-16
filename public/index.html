@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScreenShare — Compartilhe sua tela com um código</title>
+  <meta name="description" content="Crie uma sala, compartilhe a tela com áudio da tela e convide pelo código. Sem voz, sem complicação." />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <div class="brand">
+        <div class="logo">🖥️</div>
+        <div>ScreenShare<small>compartilhe a tela com um código</small></div>
+      </div>
+      <div class="nav-links">
+        <span class="pill">🔒 sem conta</span>
+        <span class="pill">🔊 só áudio da tela</span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="hero">
+      <span class="badge"><span class="dot"></span> funciona no navegador, sem instalar nada</span>
+      <h1>Compartilhe sua tela<br /><span>com um código simples</span></h1>
+      <p>Crie uma sala, aperte <b>Compartilhar Tela</b> e mande o código ou o link para quem vai assistir. Todo mundo na sala pode compartilhar. Áudio? Só o da tela — nada de microfone.</p>
+    </section>
+
+    <section class="panels">
+      <div class="card">
+        <h2>➕ Criar sala</h2>
+        <p>Digite seu nome e gere um código novo na hora.</p>
+        <label for="createName">Seu nome</label>
+        <input id="createName" type="text" maxlength="30" placeholder="Ex: Carlos" autocomplete="nickname" />
+        <div class="row">
+          <button class="btn" id="btnCreate">Criar sala agora</button>
+        </div>
+        <div class="hint">Você vai receber um código de 6 letras/números + link de convite.</div>
+      </div>
+
+      <div class="card">
+        <h2>🔑 Entrar com código</h2>
+        <p>Recebeu um código? Entre direto na sala.</p>
+        <label for="joinName">Seu nome</label>
+        <input id="joinName" type="text" maxlength="30" placeholder="Ex: Ana" autocomplete="nickname" />
+        <label for="joinCode">Código da sala</label>
+        <input id="joinCode" class="code" type="text" maxlength="10" placeholder="ABC123" autocomplete="off" spellcheck="false" />
+        <div class="row">
+          <button class="btn secondary" id="btnJoin">Entrar na sala</button>
+        </div>
+        <div class="hint">O código tem 6 caracteres. Pode colar o link de convite inteiro que funciona também.</div>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="feat"><div class="icon">⚡</div><h3>Rápido de verdade</h3><p>Conexão direta P2P via WebRTC. Sem upload para servidor, sem delay gigante.</p></div>
+      <div class="feat"><div class="icon">🔊</div><h3>Áudio da tela</h3><p>Compartilhe vídeo + som do sistema (YouTube, reunião, jogo). Microfone nunca é capturado.</p></div>
+      <div class="feat"><div class="icon">👥</div><h3>Todo mundo compartilha</h3><p>Qualquer pessoa na sala pode apertar Compartilhar. Ideal para revisar junto.</p></div>
+      <div class="feat"><div class="icon">💬</div><h3>Chat na sala</h3><p>Converse por texto enquanto assiste. Sem voz, sem ruído.</p></div>
+    </section>
+
+    <section class="steps">
+      <div class="step"><b>1</b><h3>Crie a sala</h3><p style="color:var(--muted);font-size:14px">Um clique e você ganha um código tipo <b>X7K2PQ</b>.</p></div>
+      <div class="step"><b>2</b><h3>Compartilhe a tela</h3><p style="color:var(--muted);font-size:14px">Escolha a aba, janela ou tela inteira. Marque <b>“Compartilhar áudio”</b> para sair som.</p></div>
+      <div class="step"><b>3</b><h3>Convide pelo código</h3><p style="color:var(--muted);font-size:14px">Mande o código ou o link. A pessoa entra e assiste na hora.</p></div>
+    </section>
+
+    <div class="footer">ScreenShare • WebRTC P2P • rode na sua VPS com Docker + Coolify + Cloudflare (HTTPS)</div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const toast = (msg) => {
+      const t = $('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(t._h);
+      t._h = setTimeout(() => (t.style.display = 'none'), 2600);
+    };
+
+    function makeCode() {
+      const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+      let s = '';
+      const buf = new Uint32Array(6);
+      crypto.getRandomValues(buf);
+      for (let i = 0; i < 6; i++) s += chars[buf[i] % chars.length];
+      return s;
+    }
+
+    function extractCode(raw) {
+      if (!raw) return '';
+      // aceita link inteiro: ...?codigo=ABC123 ou /s/ABC123
+      const m = String(raw).toUpperCase().match(/[A-Z0-9]{4,10}/);
+      return m ? m[0] : '';
+    }
+
+    // preenche código vindo de ?codigo=
+    const params = new URLSearchParams(location.search);
+    if (params.get('codigo')) $('joinCode').value = extractCode(params.get('codigo'));
+
+    // lembra nome
+    try {
+      const saved = localStorage.getItem('ss_name');
+      if (saved) { $('createName').value = saved; $('joinName').value = saved; }
+    } catch {}
+
+    function saveName(n) { try { localStorage.setItem('ss_name', n); } catch {} }
+
+    $('btnCreate').onclick = () => {
+      const name = $('createName').value.trim() || 'Anfitrião';
+      saveName(name);
+      const code = makeCode();
+      location.href = `/sala.html?codigo=${encodeURIComponent(code)}&nome=${encodeURIComponent(name)}`;
+    };
+
+    $('btnJoin').onclick = () => {
+      const name = $('joinName').value.trim() || 'Convidado';
+      const code = extractCode($('joinCode').value);
+      if (!code || code.length < 4) return toast('Digite um código válido (ex: ABC123)');
+      saveName(name);
+      location.href = `/sala.html?codigo=${encodeURIComponent(code)}&nome=${encodeURIComponent(name)}`;
+    };
+
+    $('joinCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btnJoin').click(); });
+    $('createName').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btnCreate').click(); });
+  </script>
+</body>
+</html>

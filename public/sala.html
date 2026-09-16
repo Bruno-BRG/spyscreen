@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sala — ScreenShare</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <div class="brand">
+        <a href="/" style="text-decoration:none"><div class="logo">🖥️</div></a>
+        <div>ScreenShare<small id="roomSubtitle">sala</small></div>
+      </div>
+      <div class="nav-links">
+        <span class="pill" id="countPill">👥 1 na sala</span>
+        <button class="btn small ghost" id="btnLeave" style="width:auto">Sair</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <div class="room-top">
+      <div class="room-code">
+        <div>
+          <div style="font-size:12px;color:var(--muted)">CÓDIGO DA SALA</div>
+          <div class="code" id="roomCode">------</div>
+        </div>
+        <button class="mini-btn" id="btnCopyCode">📋 copiar código</button>
+        <button class="mini-btn" id="btnCopyLink">🔗 copiar link</button>
+      </div>
+      <div class="status" id="status">conectando…</div>
+    </div>
+
+    <div class="alert">
+      🔊 Para sair <b>som</b>, na hora de compartilhar marque a caixinha <b>“Compartilhar áudio / Share audio”</b> do navegador. Microfone nunca é capturado — só o áudio da tela.
+    </div>
+
+    <div style="height:14px"></div>
+
+    <div class="room-layout">
+      <section class="stage">
+        <div class="videos" id="videos">
+          <div class="empty" id="emptyState">
+            👀 Ninguém está compartilhando ainda.<br />Aperte <b>Compartilhar tela</b> abaixo para começar.
+          </div>
+        </div>
+        <div class="controls">
+          <button class="btn" id="btnShare" style="width:auto">🖥️ Compartilhar tela</button>
+          <button class="btn danger" id="btnStop" style="width:auto" disabled>⏹ Parar</button>
+          <button class="btn ghost" id="btnMuteAll" style="width:auto">🔇 Mutar tudo</button>
+        </div>
+        <div class="hint">Dica: você pode abrir a mesma sala em outra aba para testar. Em HTTPS (sua VPS + Cloudflare) funciona em qualquer rede.</div>
+      </section>
+
+      <aside class="side">
+        <div class="panel">
+          <h3>👥 Participantes</h3>
+          <ul id="participants"></ul>
+        </div>
+        <div class="panel" id="chat">
+          <h3>💬 Chat da sala</h3>
+          <div id="messages"></div>
+          <div class="chat-input">
+            <input id="chatText" type="text" maxlength="500" placeholder="Escreva e aperte Enter…" style="flex:1" />
+            <button class="btn small secondary" id="btnSend">Enviar</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="/room.js"></script>
+</body>
+</html>

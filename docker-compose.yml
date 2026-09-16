@@ -1,0 +1,13 @@
+services:
+  screenshare:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      # STUN padrão já vem embutido (Google). Descomente para usar TURN próprio:
+      # - STUN_URL=stun:stun.l.google.com:19302
+      # - TURN_URL=turn:seu-turn:3478
+      # - TURN_USERNAME=usuario
+      # - TURN_PASSWORD=senha
+    restart: unless-stopped
