@@ -137,7 +137,47 @@ input.code { text-transform: uppercase; letter-spacing: .25em; font-weight: 800;
   position: relative; background: #050816; border: 1px solid var(--line);
   border-radius: 14px; overflow: hidden; min-height: 200px;
 }
-.video-card video { width: 100%; height: 240px; object-fit: contain; background: #000; display: block; }
+.video-card video { width: 100%; height: 260px; object-fit: contain; background: #000; display: block; }
+.video-wrap { position: relative; background: #000; }
+.sound-overlay {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55); cursor: pointer; border: 0; width: 100%; padding: 0;
+}
+.sound-overlay span {
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  color: #fff; font-weight: 800; font-size: 15px;
+  padding: 12px 20px; border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(99,102,241,.5);
+}
+/* ---------- FULLSCREEN (ocupa a tela toda) ---------- */
+.video-card:fullscreen, .video-card:-webkit-full-screen {
+  width: 100%; height: 100%;
+  border: 0; border-radius: 0; margin: 0;
+  background: #000;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.video-card:fullscreen .video-wrap, .video-card:-webkit-full-screen .video-wrap {
+  flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+}
+.video-card:fullscreen video, .video-card:-webkit-full-screen video {
+  width: 100vw; height: calc(100vh - 52px); max-height: none;
+  object-fit: contain; background: #000;
+}
+.video-card:fullscreen .meta, .video-card:-webkit-full-screen .meta {
+  background: #000; border-top: 1px solid var(--line);
+}
+/* ---------- responsivo sem sobreposição ---------- */
+.room-top { gap: 10px; }
+.room-code { flex-wrap: wrap; row-gap: 8px; }
+.controls .btn { min-width: 220px; }
+.chat-input input[type=text] { min-width: 0; }
+#messages { min-height: 120px; }
+@media (max-width: 560px) {
+  .videos { grid-template-columns: 1fr; }
+  .video-card video { height: 220px; }
+  .room-code .code { font-size: 20px; }
+  .controls .btn { width: 100%; }
+}
 .video-card .meta {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 10px; font-size: 13px; gap: 8px;

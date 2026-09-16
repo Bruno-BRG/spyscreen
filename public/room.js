@@ -40,7 +40,15 @@
   let wsRetries = 0;
   let iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
   let localScreenStream = null;
-  let mutedAll = false;
+  let sharing = false;
+
+  function setShareUI(on) {
+    sharing = on;
+    const btn = $('btnShare');
+    btn.textContent = on ? '⏹ Parar de compartilhar' : '🖥️ Compartilhar tela';
+    btn.className = on ? 'btn danger' : 'btn';
+    btn.style.width = 'auto';
+  }
 
   const toast = (msg) => {
     let t = $('toast');
@@ -66,6 +74,12 @@
     emptyState.style.display = hasVideo ? 'none' : 'block';
   }
 
+  function tryPlay(video, overlay) {
+    // Navegadores bloqueiam autoplay COM som: começamos mutado e o usuário ativa o som com 1 clique.
+    const p = video.play();
+    if (p && p.catch) p.catch(() => {});
+  }
+
   function ensureVideoCard(peerId, displayName, isLocal) {
     let card = videosEl.querySelector(`[data-peer="${peerId}"]`);
     if (card) return card;
@@ -75,12 +89,36 @@
     card.className = 'video-card';
     card.dataset.peer = peerId;
 
+    const wrap = document.createElement('div');
+    wrap.className = 'video-wrap';
+
     const video = document.createElement('video');
     video.autoplay = true;
     video.playsInline = true;
     video.controls = false;
-    if (isLocal) video.muted = true; // evita eco no preview local
-    else video.muted = mutedAll;
+    video.muted = true; // sempre começa mutado (autoplay liberado); som sai no overlay abaixo
+    video.preload = 'auto';
+
+    const overlay = document.createElement('button');
+    overlay.className = 'sound-overlay';
+    overlay.style.display = isLocal ? 'none' : 'flex';
+    overlay.innerHTML = '<span>🔊 Clique para ativar o som</span>';
+    overlay.title = 'Ativar som';
+    overlay.onclick = (ev) => {
+      ev.stopPropagation();
+      video.muted = false;
+      tryPlay(video, overlay);
+      overlay.style.display = 'none';
+    };
+
+    video.addEventListener('playing', () => {
+      // se está tocando COM som, esconde o overlay; se mutado e é remoto, mostra
+      if (!video.muted) overlay.style.display = 'none';
+      else if (!isLocal) overlay.style.display = 'flex';
+    });
+
+    wrap.appendChild(video);
+    wrap.appendChild(overlay);
 
     const meta = document.createElement('div');
     meta.className = 'meta';
@@ -110,30 +148,23 @@
     const actions = document.createElement('div');
     actions.className = 'video-actions';
 
-    const btnMute = document.createElement('button');
-    btnMute.className = 'mini-btn';
-    btnMute.textContent = video.muted ? '🔇' : '🔊';
-    btnMute.title = 'mutar / desmutar este vídeo';
-    btnMute.onclick = () => {
-      video.muted = !video.muted;
-      btnMute.textContent = video.muted ? '🔇' : '🔊';
-    };
-
     const btnFull = document.createElement('button');
     btnFull.className = 'mini-btn';
-    btnFull.textContent = '⛶';
+    btnFull.textContent = '⛶ tela cheia';
     btnFull.title = 'tela cheia';
-    btnFull.onclick = () => {
-      if (card.requestFullscreen) card.requestFullscreen();
-      else if (video.requestFullscreen) video.requestFullscreen();
+    btnFull.onclick = async () => {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else if (card.requestFullscreen) await card.requestFullscreen();
+        else if (video.requestFullscreen) await video.requestFullscreen();
+      } catch {}
     };
 
-    actions.appendChild(btnMute);
     actions.appendChild(btnFull);
 
     meta.appendChild(left);
     meta.appendChild(actions);
-    card.appendChild(video);
+    card.appendChild(wrap);
     card.appendChild(meta);
     videosEl.appendChild(card);
     refreshEmpty();
@@ -200,17 +231,30 @@
     };
 
     pc.ontrack = (e) => {
-      if (!state.stream) state.stream = new MediaStream();
-      e.streams[0]?.getTracks().forEach((t) => {
-        if (!state.stream.getTrackById(t.id)) state.stream.addTrack(t);
-      });
-      // fallback: adiciona a track do evento
-      if (e.track && !state.stream.getTrackById(e.track.id)) state.stream.addTrack(e.track);
+      const incoming = (e.streams && e.streams[0]) || null;
+      state.stream = incoming || state.stream || new MediaStream();
+      if (!incoming && e.track && !state.stream.getTrackById(e.track.id)) {
+        try { state.stream.addTrack(e.track); } catch {}
+      }
       state.sharing = true;
       const card = ensureVideoCard(peerId, peerName, false);
       const video = card.querySelector('video');
-      video.srcObject = state.stream;
-      video.play().catch(() => {});
+      const overlay = card.querySelector('.sound-overlay');
+      if (video.srcObject !== state.stream) video.srcObject = state.stream;
+      video.muted = true; // garante autoplay; usuário ativa o som no overlay
+      if (overlay) overlay.style.display = 'flex';
+      tryPlay(video, overlay);
+      // se quem compartilha parar, some o card sozinho
+      try {
+        state.stream.onremovetrack = () => {
+          const vids = state.stream.getVideoTracks();
+          if (vids.length === 0) {
+            state.sharing = false;
+            removeVideoCard(peerId);
+            updateParticipants();
+          }
+        };
+      } catch {}
       updateParticipants();
     };
 
@@ -363,10 +407,13 @@
 
   // ---------- Compartilhar tela ----------
   async function startShare() {
+    if (sharing) { stopShare(); return; }
     if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
       toast('Compartilhar tela exige HTTPS. Acesse pelo domínio com cadeado.');
       return;
     }
+    const btn = $('btnShare');
+    btn.disabled = true;
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
@@ -378,7 +425,7 @@
       const card = ensureVideoCard(localId, myName, true);
       const video = card.querySelector('video');
       video.srcObject = stream;
-      video.play().catch(() => {});
+      tryPlay(video, null);
 
       // envia tracks para todos os peers (renegocia)
       for (const [peerId, st] of peers.entries()) {
@@ -391,13 +438,14 @@
       // se o usuário clicar em "interromper compartilhamento" no popup do navegador
       stream.getVideoTracks()[0]?.addEventListener('ended', () => stopShare());
 
-      $('btnShare').disabled = true;
-      $('btnStop').disabled = false;
+      setShareUI(true);
       updateParticipants();
       toast('Compartilhando! Lembre: marque “compartilhar áudio” para sair som.');
     } catch (err) {
       if (err && err.name === 'NotAllowedError') toast('Você cancelou o compartilhamento.');
       else toast('Não foi possível compartilhar: ' + (err.message || err.name));
+    } finally {
+      btn.disabled = false;
     }
   }
 
@@ -420,8 +468,7 @@
       localScreenStream = null;
       removeVideoCard(localId);
       send({ type: 'share-state', sharing: false });
-      $('btnShare').disabled = false;
-      $('btnStop').disabled = true;
+      setShareUI(false);
       updateParticipants();
     }
   }
@@ -437,28 +484,29 @@
 
   // ---------- Botões ----------
   $('btnShare').onclick = startShare;
-  $('btnStop').onclick = stopShare;
   $('btnSend').onclick = sendChat;
   $('chatText').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
   $('btnLeave').onclick = () => { try { ws && ws.close(); } catch {} location.href = '/'; };
-  $('btnMuteAll').onclick = () => {
-    mutedAll = !mutedAll;
-    document.querySelectorAll('.video-card video').forEach((v) => {
-      const card = v.closest('.video-card');
-      const isLocal = card && card.dataset.peer === localId;
-      if (!isLocal) v.muted = mutedAll;
-    });
-    $('btnMuteAll').textContent = mutedAll ? '🔈 Desmutar tudo' : '🔇 Mutar tudo';
-  };
-  $('btnCopyCode').onclick = async () => {
-    try { await navigator.clipboard.writeText(code); toast('Código copiado!'); }
-    catch { toast('Código: ' + code); }
-  };
-  $('btnCopyLink').onclick = async () => {
+  $('btnInvite').onclick = async () => {
     const link = `${location.origin}/sala.html?codigo=${encodeURIComponent(code)}`;
-    try { await navigator.clipboard.writeText(link); toast('Link copiado!'); }
-    catch { prompt('Copie o link:', link); }
+    const text = `Entra na minha sala ${code}: ${link}`;
+    try { await navigator.clipboard.writeText(text); toast('Convite copiado! É só mandar.'); }
+    catch { prompt('Copie o convite:', text); }
   };
+
+  // primeiro clique na página tenta dar play com som nos vídeos que travaram no mudo
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.video-card').forEach((card) => {
+      if (card.dataset.peer === localId) return;
+      const video = card.querySelector('video');
+      const overlay = card.querySelector('.sound-overlay');
+      if (video && !video.muted && video.paused) {
+        const p = video.play();
+        if (p && p.catch) p.catch(() => {});
+      }
+      void overlay;
+    });
+  });
 
   // heartbeat
   setInterval(() => send({ type: 'ping' }), 25000);

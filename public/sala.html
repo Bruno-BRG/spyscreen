@@ -28,31 +28,22 @@
           <div style="font-size:12px;color:var(--muted)">CÓDIGO DA SALA</div>
           <div class="code" id="roomCode">------</div>
         </div>
-        <button class="mini-btn" id="btnCopyCode">📋 copiar código</button>
-        <button class="mini-btn" id="btnCopyLink">🔗 copiar link</button>
+        <button class="mini-btn" id="btnInvite">🔗 copiar convite</button>
       </div>
       <div class="status" id="status">conectando…</div>
     </div>
-
-    <div class="alert">
-      🔊 Para sair <b>som</b>, na hora de compartilhar marque a caixinha <b>“Compartilhar áudio / Share audio”</b> do navegador. Microfone nunca é capturado — só o áudio da tela.
-    </div>
-
-    <div style="height:14px"></div>
 
     <div class="room-layout">
       <section class="stage">
         <div class="videos" id="videos">
           <div class="empty" id="emptyState">
-            👀 Ninguém está compartilhando ainda.<br />Aperte <b>Compartilhar tela</b> abaixo para começar.
+            👀 Ninguém está compartilhando ainda.<br />Aperte <b>Compartilhar tela</b> para começar.
           </div>
         </div>
         <div class="controls">
           <button class="btn" id="btnShare" style="width:auto">🖥️ Compartilhar tela</button>
-          <button class="btn danger" id="btnStop" style="width:auto" disabled>⏹ Parar</button>
-          <button class="btn ghost" id="btnMuteAll" style="width:auto">🔇 Mutar tudo</button>
         </div>
-        <div class="hint">Dica: você pode abrir a mesma sala em outra aba para testar. Em HTTPS (sua VPS + Cloudflare) funciona em qualquer rede.</div>
+        <div class="hint">Para sair <b>som</b>, marque <b>“Compartilhar áudio”</b> na janela do navegador. Microfone nunca é capturado.</div>
       </section>
 
       <aside class="side">
@@ -61,7 +52,7 @@
           <ul id="participants"></ul>
         </div>
         <div class="panel" id="chat">
-          <h3>💬 Chat da sala</h3>
+          <h3>💬 Chat</h3>
           <div id="messages"></div>
           <div class="chat-input">
             <input id="chatText" type="text" maxlength="500" placeholder="Escreva e aperte Enter…" style="flex:1" />
