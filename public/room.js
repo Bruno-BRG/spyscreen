@@ -38,6 +38,8 @@
 
   let ws = null;
   let wsRetries = 0;
+  let connectSeq = 0;
+  const outbox = []; // mensagens digitadas sem conexão: enviadas ao entrar
   let iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
   let localScreenStream = null;
   let sharing = false;
@@ -215,7 +217,10 @@
   }
 
   function send(obj) {
-    if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
+    if (ws && ws.readyState === 1) {
+      try { ws.send(JSON.stringify(obj)); return true; } catch { /* cai no false */ }
+    }
+    return false;
   }
 
   // ---------- WebRTC ----------
@@ -330,6 +335,7 @@
 
   // ---------- WebSocket ----------
   function connect() {
+    const mySeq = ++connectSeq;
     const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
     ws = new WebSocket(proto + location.host + '/ws');
 
@@ -345,6 +351,7 @@
 
       if (msg.type === 'joined') {
         setStatus(`na sala ${msg.code} • ${msg.count} pessoa(s)`, true);
+        while (outbox.length) { const m = outbox.shift(); send(m); }
         (msg.peers || []).forEach((p) => {
           names.set(p.id, p.name);
           const st = createPeerConnection(p.id, p.name);
@@ -394,6 +401,7 @@
     };
 
     ws.onclose = () => {
+      if (mySeq !== connectSeq) return; // conexão velha: ignora
       setStatus('desconectado — tentando reconectar…', false);
       if (wsRetries < 8) {
         wsRetries++;
@@ -478,8 +486,14 @@
     const input = $('chatText');
     const text = input.value.trim();
     if (!text) return;
-    send({ type: 'chat', text });
-    input.value = '';
+    if (send({ type: 'chat', text })) {
+      input.value = '';
+    } else {
+      outbox.push({ type: 'chat', text });
+      input.value = '';
+      toast('Sem conexão — reconectando, sua mensagem vai sozinha.');
+      if (!ws || ws.readyState === 3) connect();
+    }
   }
 
   // ---------- Botões ----------
